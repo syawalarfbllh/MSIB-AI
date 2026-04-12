@@ -1,0 +1,160 @@
+{
+  "name": "Customer-Service-Cetakmomen",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Hi there! 👋\nMy name is Dinda. How can I assist you today?",
+        "availableInChat": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a35397d7-1a50-408f-b0e5-0615835ed510",
+      "name": "When chat message received",
+      "webhookId": "a09f1df1-26d9-4103-ac4b-be0adef3d284"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Anda adalah Customer Service dari 'Cetakmomen.id', spesialis cetak foto Polaroid.\n\nTugas Anda adalah membantu pelanggan menemukan produk yang sesuai. Gunakan tool Google Sheets untuk memberikan informasi harga yang akurat. \n\nBersikaplah ramah, gunakan emoji yang relevan, dan jika pelanggan bertanya cara order, arahkan mereka untuk mengirim file foto via WhatsApp 089673954505 setelah melihat daftar harga."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "6a2c902c-e3ba-4e4f-a22d-7406f3f8bc82",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3-32b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        80,
+        208
+      ],
+      "id": "7c37e242-09c1-4509-a6fc-9d7e3f858216",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "vkNb7zZmtBnQlFck",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        208
+      ],
+      "id": "c5806506-5761-4305-bc47-96005ea81760",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Rpx8s9LukF4CgWwGx-PGpBWUnoRtoTuZh8CrP7bJUOQ",
+          "mode": "list",
+          "cachedResultName": "Pembuatan Agen AI Chatbot Web N8n",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Rpx8s9LukF4CgWwGx-PGpBWUnoRtoTuZh8CrP7bJUOQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 20674682,
+          "mode": "list",
+          "cachedResultName": "Pembuatan Agen AI Chatbot Web N8n",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Rpx8s9LukF4CgWwGx-PGpBWUnoRtoTuZh8CrP7bJUOQ/edit#gid=20674682"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        368,
+        208
+      ],
+      "id": "7d87da0e-f2ba-4b26-a56e-a5f843f6bacc",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "M4DcFBzs4sk1C2k5",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b046e8da-23e2-4957-aef1-98b107b79eaa",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cab9c9ececca4869321bc8a7245987d9909e228dfbfec2e7ab957384920086bf"
+  },
+  "id": "KCd6oYscLpYazXdv",
+  "tags": []
+}
