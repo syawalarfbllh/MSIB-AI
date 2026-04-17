@@ -1,0 +1,457 @@
+{
+  "name": "My workflow 6",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1UyJLSqVWN2cGERx7VMdfG1aEmZFMzrfO",
+          "mode": "list",
+          "cachedResultName": "RAG-01-pertemuan-5",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1UyJLSqVWN2cGERx7VMdfG1aEmZFMzrfO"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        0
+      ],
+      "id": "fc04e8e1-73aa-4347-b863-fa65e588cc66",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "RL1S52dLNItmqnYM",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ba0f1eaf-40f7-4903-91cc-9cd32bf0d57e",
+              "name": "file_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        16,
+        0
+      ],
+      "id": "143057ba-17d8-4a1e-83d3-d19fab0309be",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.file_id }}",
+          "mode": "id"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/plain"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        240,
+        0
+      ],
+      "id": "6a90e240-1b40-4c81-80e0-6e7571efe1c4",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "RL1S52dLNItmqnYM",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        512,
+        0
+      ],
+      "id": "41438bba-1869-4ddf-ba94-61c16482d761",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        960,
+        0
+      ],
+      "id": "9a9fb51a-ed79-44d1-adbf-005b129fbc05",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6Rik7aZfqP7Bv838",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const newItems = [];\nconst chunkSize = 1000;\nconst overlap = 100;\n\nfor (let item of $input.all()) {\n  // 1. JURUS SAPU BERSIH: Ubah seluruh data jadi teks untuk mendeteksi error di metadata\n  let itemString = JSON.stringify(item);\n  \n  // Hapus semua variasi Null Byte dari seluruh bagian file (teks dan metadata)\n  itemString = itemString.replace(/\\\\u0000/g, ''); \n  itemString = itemString.replace(/\\u0000/g, '');\n  \n  // Kembalikan menjadi format objek data n8n\n  let cleanItem = JSON.parse(itemString);\n\n  // 2. Lakukan pemotongan teks (Chunking) pada data yang sudah 100% bersih\n  if (cleanItem.json && cleanItem.json.text) {\n    let text = cleanItem.json.text;\n    let i = 0;\n    \n    // Jika teks ternyata pendek, tidak perlu dipotong\n    if (text.length <= chunkSize) {\n       newItems.push(cleanItem);\n       continue;\n    }\n\n    while (i < text.length) {\n      let chunk = text.substring(i, i + chunkSize);\n      \n      newItems.push({\n        json: {\n          ...cleanItem.json,\n          text: chunk\n        }\n      });\n      \n      i += (chunkSize - overlap);\n    }\n  } else {\n    // Jika bukan teks, lewatkan saja\n    newItems.push(cleanItem);\n  }\n}\n\nreturn newItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        0
+      ],
+      "id": "cb5c2629-0bcc-41cf-b52a-7f106d413a1c",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        896,
+        192
+      ],
+      "id": "1427644a-2d36-480d-a27c-21f358e08825",
+      "name": "Embeddings HuggingFace Inference",
+      "credentials": {
+        "huggingFaceApi": {
+          "id": "dEZzJCPoaZLD6psb",
+          "name": "Hugging Face account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "file_id",
+                "value": "={{ $('Edit Fields').item.json.file_id }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        1104,
+        208
+      ],
+      "id": "b43eb54e-9648-4a25-8156-96262946c1f6",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -192,
+        272
+      ],
+      "id": "3fa61a05-6a3f-40e6-b212-3d30edc2d93e",
+      "name": "When chat message received",
+      "webhookId": "62fae562-9d85-4099-bb0b-fee14fcbe898"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Anda adalah Asisten HR Virtual resmi untuk NF ACADEMY. Tugas utama Anda adalah membantu karyawan dengan memberikan informasi yang akurat mengenai kebijakan perusahaan, jam kerja, cuti, tunjangan, penilaian kinerja, serta pedoman disiplin.\n\nAturan ketat yang harus Anda patuhi:\n1. Anda HANYA boleh menjawab berdasarkan informasi yang diberikan dari dokumen atau database internal (konteks) 'Panduan Karyawan NF ACADEMY'.\n2. Gunakan bahasa Indonesia yang profesional, ramah, sopan, dan mudah dipahami.\n3. JANGAN PERNAH mengarang jawaban (halusinasi). Jika ada pertanyaan yang jawabannya tidak terdapat dalam informasi yang diberikan, sampaikan dengan sopan bahwa Anda tidak memiliki informasi tersebut, lalu arahkan karyawan untuk menghubungi tim HR secara langsung melalui email ke: hr@nfacademy.id.\n4. Berikan jawaban yang terstruktur. Jika informasi aslinya berupa tabel atau daftar (seperti jatah cuti, jadwal kerja, atau tunjangan), sampaikan menggunakan poin-poin (bullet points) agar mudah dibaca oleh karyawan."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        16,
+        272
+      ],
+      "id": "7b940cc2-de91-4d52-8e35-8cf8dcd02d4e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        480
+      ],
+      "id": "2b5533d7-c805-48ca-89ec-e7da963eb041",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "adQSYCqRqyAoopyD",
+          "name": "Groq account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Gunakan alat ini untuk mencari informasi resmi mengenai kebijakan SDM, prosedur perusahaan, hak dan kewajiban karyawan, manajemen cuti, jadwal kerja hybrid, tunjangan, dan kode etik di NF ACADEMY. Alat ini berisi data lengkap dari Panduan Karyawan (Employee Handbook) NF ACADEMY.",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        288,
+        464
+      ],
+      "id": "5dbb53c2-dd97-4176-89fc-373a8c6733bc",
+      "name": "Supabase Vector Store1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "6Rik7aZfqP7Bv838",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        32,
+        464
+      ],
+      "id": "5283521f-7909-45f6-b656-ab8f0108e540",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "4BEgD4nYp7IqqgE4",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        384,
+        672
+      ],
+      "id": "70fd0bf8-1923-4764-8d90-d6c8424e1a34",
+      "name": "Embeddings HuggingFace Inference1",
+      "credentials": {
+        "huggingFaceApi": {
+          "id": "dEZzJCPoaZLD6psb",
+          "name": "Hugging Face account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings HuggingFace Inference": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings HuggingFace Inference1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "40d8fe13-de59-4ecb-96d8-f2f9daaa9a5d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cab9c9ececca4869321bc8a7245987d9909e228dfbfec2e7ab957384920086bf"
+  },
+  "id": "o2PnyoCA1mLiGmck",
+  "tags": []
+}
