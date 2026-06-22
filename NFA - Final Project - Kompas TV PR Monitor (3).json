@@ -1,0 +1,714 @@
+{
+  "name": "NFA - Final Project - Kompas TV PR Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Kamu adalah analis sentimen profesional untuk tim PR Kompas TV. Tugasmu menganalisis komentar YouTube dan memberikan output HANYA dalam format JSON berikut, tanpa teks tambahan apapun:\n\n{\"sentimen\":\"positif|negatif|netral\",\"skor_marah\":5,\"topik_utama\":\"topik max 5 kata\",\"ringkasan\":\"ringkasan 1 kalimat\",\"perlu_respons\":false,\"draf_balasan\":\"isi draf di sini\"}\n\nPanduan skor_marah (angka bulat 1-10):\n1-3 = normal, tidak ada amarah\n4-6 = ketidakpuasan atau kritik ringan\n7-9 = marah, perlu diperhatikan tim PR\n10  = krisis, ancaman atau ujaran kebencian\n\nJika perlu_respons bernilai true, berikan draf balasan yang profesional, tenang, dan empatik sesuai gaya komunikasi PR TV Nasional pada properti \"draf_balasan\" (maksimal 2 kalimat). Jika false, isi dengan \"\".\n\nJawab HANYA JSON valid, tanpa markdown, tanpa penjelasan."
+            }
+          ]
+        }
+      },
+      "id": "cb9ff07f-268a-4a63-932d-4154c2947a56",
+      "name": "Analisis Sentimen (Groq)",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        272,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "f277a4b5-39ee-422b-9531-2beec8c26518",
+      "name": "Groq Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        272,
+        736
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "IVWNMfh07reEVnZ5",
+          "name": "Groq account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Ambil data komentar asli dari node sebelum Groq\nconst originalData = $('Filter Komentar Baru').all();\n\n// 2. Proses hasil dari AI satu per satu\nreturn $input.all().map((item, index) => {\n  \n  // Mengambil jawaban AI (di n8n biasanya hasil AI diletakkan di field 'text')\n  const raw = item.json.text || item.json.message?.content || item.json.output || '';\n  \n  let parsed = {};\n  try {\n    // Mengekstrak hanya bagian JSON dari jawaban AI\n    const match = String(raw).match(/\\{[\\s\\S]*?\\}/);\n    if (match) parsed = JSON.parse(match[0]);\n  } catch(e) {\n    parsed = { sentimen: 'netral', skor_marah: 0, topik_utama: 'error', ringkasan: 'Gagal parse', perlu_respons: false };\n  }\n\n  // 3. Mengambil kembali data asli berdasarkan nomor urutannya\n  const src = originalData[index] ? originalData[index].json : {};\n\n  // 4. Gabungkan Data Asli dan Hasil AI\n  return {\n    json: {\n      // --- Data Asli YouTube ---\n      comment_id:    src.comment_id    || '',\n      author:        src.author        || '',\n      text:          src.text          || '', // Sekarang ini akan kembali berisi isi komentar YouTube\n      published_at:  src.published_at  || '',\n      like_count:    src.like_count    || 0,\n      video_id:      src.video_id      || '',\n      ingested_at:   src.ingested_at   || '',\n      \n      // --- Hasil Analisis AI ---\n      sentimen:      parsed.sentimen   || 'netral',\n      skor_marah:    Number(parsed.skor_marah) || 0,\n      topik_utama:   parsed.topik_utama|| '',\n      ringkasan:     parsed.ringkasan  || '',\n      perlu_respons: parsed.perlu_respons ?? false,\n      draf_balasan:  parsed.draf_balasan || '',\n      analyzed_at:   new Date().toISOString()\n    }\n  };\n});"
+      },
+      "id": "a65a7fde-dbf3-4e6c-98fd-941c049c9558",
+      "name": "Parse Hasil AI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "12F5J9Nh7G85bkM7Aztp5uCjsozKvmy7l9KpzVAK9bcY",
+          "mode": "list",
+          "cachedResultName": "Database Krisis KompasTV",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12F5J9Nh7G85bkM7Aztp5uCjsozKvmy7l9KpzVAK9bcY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12F5J9Nh7G85bkM7Aztp5uCjsozKvmy7l9KpzVAK9bcY/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "comment_id": "={{ $json.comment_id }}",
+            "author": "={{ $json.author }}",
+            "text": "={{ $json.text }}",
+            "published_at": "={{ $json.published_at }}",
+            "like_count": "={{ $json.like_count }}",
+            "video_id": "={{ $json.video_id }}",
+            "ingested_at": "={{ $json.ingested_at }}",
+            "sentimen": "={{ $json.sentimen }}",
+            "skor_marah": "={{ $json.skor_marah }}",
+            "topik_utama": "={{ $json.topik_utama }}",
+            "ringkasan": "={{ $json.ringkasan }}",
+            "perlu_respons": "={{ $json.perlu_respons }}",
+            "analyzed_at": "={{ $json.analyzed_at }}",
+            "draf_balasan": "={{ $json.draf_balasan }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "comment_id",
+              "displayName": "comment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "author",
+              "displayName": "author",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "text",
+              "displayName": "text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "published_at",
+              "displayName": "published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "like_count",
+              "displayName": "like_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "video_id",
+              "displayName": "video_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ingested_at",
+              "displayName": "ingested_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sentimen",
+              "displayName": "sentimen",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "skor_marah",
+              "displayName": "skor_marah",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "topik_utama",
+              "displayName": "topik_utama",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ringkasan",
+              "displayName": "ringkasan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "perlu_respons",
+              "displayName": "perlu_respons",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "draf_balasan",
+              "displayName": "draf_balasan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "analyzed_at",
+              "displayName": "analyzed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "id": "9faf44fd-285f-472a-aa1d-522a66a879f4",
+      "name": "Simpan ke Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        832,
+        528
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "M4DcFBzs4sk1C2k5",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-krisis",
+              "leftValue": "={{ $json.skor_marah }}",
+              "rightValue": 8,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ef11b8b9-94d9-4f11-a4d3-22475464b9b1",
+      "name": "Filter Krisis (>= 8)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
+      "id": "323cf0c9-6aba-4044-9b7f-00c1b2d4062d",
+      "name": "Split Comments1",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f001",
+              "name": "comment_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "f002",
+              "name": "author",
+              "value": "={{ $json.snippet.topLevelComment.snippet.authorDisplayName }}",
+              "type": "string"
+            },
+            {
+              "id": "f003",
+              "name": "text",
+              "value": "={{ $json.snippet.topLevelComment.snippet.textDisplay }}",
+              "type": "string"
+            },
+            {
+              "id": "f004",
+              "name": "published_at",
+              "value": "={{ $json.snippet.topLevelComment.snippet.publishedAt }}",
+              "type": "string"
+            },
+            {
+              "id": "f005",
+              "name": "like_count",
+              "value": "={{ $json.snippet.topLevelComment.snippet.likeCount ?? 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "f006",
+              "name": "video_id",
+              "value": "={{ $json.snippet.videoId }}",
+              "type": "string"
+            },
+            {
+              "id": "f007",
+              "name": "ingested_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c9ab3837-0669-4bfe-af85-4ad46828c284",
+      "name": "Format Data Komentar1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -176,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const newComments = $input.all();\n\nlet existingRows = [];\ntry {\n  existingRows = $('Cek Database (Sheets)').all();\n} catch (e) {\n  existingRows = [];\n}\n\n// Gunakan Set untuk lookup lebih cepat\nconst existingIds = new Set(\n  existingRows\n    .map(row => String(row.json.comment_id || '').trim())\n    .filter(id => id)\n);\n\n// Filter ketat: buang komentar yang comment_id-nya sudah ada\nconst filtered = newComments.filter(comment => {\n  const id = String(comment.json.comment_id || '').trim();\n  return id && !existingIds.has(id);\n});\n\n// Jika tidak ada komentar baru sama sekali, hentikan workflow\nif (filtered.length === 0) {\n  return [];\n}\n\nreturn filtered;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        528
+      ],
+      "id": "a2f77161-8681-41c9-a14a-0145ff40f278",
+      "name": "Filter Komentar Baru"
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $json.pesan }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        432
+      ],
+      "id": "3d43816a-3b94-416c-964c-abe7ba5384ef",
+      "name": "Discord",
+      "webhookId": "715b2869-918f-41f1-af4b-1b2766c9fe08",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "0g49OVORtMwcG0RK",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => {\n  const d = item.json;\n\n  const bar = (s) => '🔴'.repeat(Math.min(Math.round(s), 10)) + '⚪'.repeat(Math.max(10 - Math.round(s), 0));\n  const level = d.skor_marah >= 10 ? '🚨 **KRISIS TOTAL**'\n              : d.skor_marah >= 9  ? '🔴 **BAHAYA TINGGI**'\n              :                      '⚠️ **PERINGATAN**';\n\n  const tgl = new Date(d.analyzed_at || Date.now()).toLocaleString('id-ID', {\n    timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short',\n    year: 'numeric', hour: '2-digit', minute: '2-digit'\n  });\n\n  const url     = `https://www.youtube.com/watch?v=${d.video_id}&lc=${d.comment_id}`;\n  const preview = (d.text || '').length > 280 ? d.text.substring(0, 280) + '...' : (d.text || '');\n\n  const teksBalasan = d.draf_balasan\n    ? [`💡 **Draf Balasan AI:**`, `> ${d.draf_balasan}`, '']\n    : [];\n\n  const pesan = [\n    level, '',\n    `📊 **Skor Marah: ${d.skor_marah}/10**`,\n    bar(d.skor_marah), '',\n    `👤 **Author:** ${d.author || 'Anonim'}`,\n    `🏷️ **Topik:** ${d.topik_utama || '-'}`,\n    `💬 **Sentimen:** ${(d.sentimen || '').toUpperCase()}`, '',\n    `📝 **Ringkasan:**`,\n    `> ${d.ringkasan || '-'}`, '',\n    `💬 **Komentar Asli:**`,\n    `\\`\\`\\`\\n${preview}\\n\\`\\`\\``,\n    ...teksBalasan,\n    `🔗 [Klik Untuk Lihat Komentar](${url})`, '',\n    `🕐 ${tgl} WIB`,\n    `#PRKompasTV #KrisisKomentar`\n  ].join('\\n');\n\n  return { json: { ...d, pesan } };\n});"
+      },
+      "id": "b2e49321-9e1f-4db4-87e6-8443733b7c68",
+      "name": "Format Pesan Discord",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "id": "9a60c0a9-5522-42a3-9d9e-a30267955c1b",
+      "name": "Pemicu Jadwal Rutin (Trigger)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1152,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12F5J9Nh7G85bkM7Aztp5uCjsozKvmy7l9KpzVAK9bcY",
+          "mode": "list",
+          "cachedResultName": "Database Krisis KompasTV",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12F5J9Nh7G85bkM7Aztp5uCjsozKvmy7l9KpzVAK9bcY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12F5J9Nh7G85bkM7Aztp5uCjsozKvmy7l9KpzVAK9bcY/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "comment_id"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7394ce57-57e8-4506-810e-7e734704e94c",
+      "name": "Cek Database (Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -896,
+        528
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "M4DcFBzs4sk1C2k5",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://youtube.googleapis.com/youtube/v3/commentThreads",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet"
+            },
+            {
+              "name": "allThreadsRelatedToChannelId",
+              "value": "UCneA4BuveCEgJql1m7lwFag"
+            },
+            {
+              "name": "maxResults",
+              "value": "10"
+            },
+            {
+              "name": "key",
+              "value": "AIzaSyAbfURs5kAEWY5fPyvL14-Y_HDmNKSssSI"
+            },
+            {
+              "name": "order",
+              "value": "time"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0d0240cc-9a8e-42e7-8010-ddaaef47ad67",
+      "name": "Integrasi API YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -656,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const total = $input.all().length;\n\nconst tgl = new Date().toLocaleString('id-ID', {\n  timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short',\n  year: 'numeric', hour: '2-digit', minute: '2-digit'\n});\n\nreturn [{\n  json: {\n    pesan: [\n      `✅ **PEMANTAUAN AMAN**`,\n      ``,\n      `📅 *${tgl} WIB*`,\n      `📊 *${total} komentar baru ditemukan — tidak ada yang mencapai level krisis.*`,\n      ``,\n      `#PRKompasTV #KrisisKomentar`\n    ].join('\\n')\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        640
+      ],
+      "id": "cc1cbe90-217e-4e04-8493-c41a303e8f8d",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $json.pesan }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        640
+      ],
+      "id": "c785ed75-6463-4f37-ab1e-8240094da75b",
+      "name": "Discord1",
+      "webhookId": "715b2869-918f-41f1-af4b-1b2766c9fe08",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "0g49OVORtMwcG0RK",
+          "name": "Discord Webhook account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Groq Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analisis Sentimen (Groq)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analisis Sentimen (Groq)": {
+      "main": [
+        [
+          {
+            "node": "Parse Hasil AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Hasil AI": {
+      "main": [
+        [
+          {
+            "node": "Simpan ke Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simpan ke Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Filter Krisis (>= 8)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Krisis (>= 8)": {
+      "main": [
+        [
+          {
+            "node": "Format Pesan Discord",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Comments1": {
+      "main": [
+        [
+          {
+            "node": "Format Data Komentar1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data Komentar1": {
+      "main": [
+        [
+          {
+            "node": "Filter Komentar Baru",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Komentar Baru": {
+      "main": [
+        [
+          {
+            "node": "Analisis Sentimen (Groq)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Pesan Discord": {
+      "main": [
+        [
+          {
+            "node": "Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pemicu Jadwal Rutin (Trigger)": {
+      "main": [
+        [
+          {
+            "node": "Cek Database (Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cek Database (Sheets)": {
+      "main": [
+        [
+          {
+            "node": "Integrasi API YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Integrasi API YouTube": {
+      "main": [
+        [
+          {
+            "node": "Split Comments1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Discord1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0cab7f34-0b5b-46b9-9570-80b922a4fd6a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cab9c9ececca4869321bc8a7245987d9909e228dfbfec2e7ab957384920086bf"
+  },
+  "id": "cxtUa5d3vvyDh3rq",
+  "tags": []
+}
